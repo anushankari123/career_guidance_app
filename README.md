@@ -1,24 +1,16 @@
-# Career Guidance App
+# mobile_app_mini_project
 
-The Career Guidance App is an innovative mobile application built using Flutter, designed to assist users in exploring various career paths and making informed decisions about their future. The app provides detailed job descriptions, salary expectations, educational requirements, and access to curated educational resources. It also features an integrated chatbot for real-time assistance and a networking platform to connect freshers with professionals for personalized mentorship.
-
-## Features
-
-- **Career Exploration**: Navigate a wide range of career fields with advanced filtering and sub-filtering options to find a path that suits your interests.
-- **Detailed Information**: Access comprehensive details about different professions, including job descriptions, salary expectations, and required education.
-- **Educational Resources**: Utilize curated resources to support career development and learning.
-- **Integrated Chatbot**: Get real-time assistance for app-related queries and career guidance through an interactive chatbot.
-- **Mentorship and Networking**: Connect with professionals for mentorship, real-time messaging, and expand your network based on career aspirations.
+A new Flutter project.
 
 ## Getting Started
 
-### Prerequisites
+This project is a starting point for a Flutter application.
 
-- **Flutter**: Make sure you have Flutter installed. You can download it from [Flutter's official website](https://flutter.dev/docs/get-started/install).
+A few resources to get you started if this is your first Flutter project:
 
-### Installation
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/yourusername/career-guidance-app.git
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
