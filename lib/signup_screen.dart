@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class SignupScreen extends StatefulWidget {
   @override
@@ -10,12 +12,63 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  
   bool _obscurePassword = true; // State to toggle password visibility
 
   void _togglePasswordVisibility() {
     setState(() {
       _obscurePassword = !_obscurePassword;
     });
+  }
+
+  Future<void> _signupUser() async {
+    if (_formKey.currentState!.validate()) {
+      String email = _emailController.text;
+      String password = _passwordController.text;
+      String name = _nameController.text;
+
+      try {
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        User? user = userCredential.user;
+
+        if (user != null) {
+          await user.updateDisplayName(name);
+
+          // Storing user information in the database with default/empty values
+          DatabaseReference userRef = FirebaseDatabase.instance.reference()
+              .child('users')
+              .child(user.uid);
+          await userRef.set({
+            'name': name,
+            'jobStatus': '',       // Default or empty values
+            'jobTitle': '',
+            'phone': '',
+            'email': email,
+            'profileImage': '',    // Default or empty values
+          });
+
+          Navigator.of(context).pushNamed('/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Signup failed')),
+          );
+        }
+      } catch (e) {
+        print('Error during signup: $e');
+        String errorMessage = 'An error occurred, please try again';
+        if (e is FirebaseAuthException) {
+          errorMessage = e.message ?? errorMessage;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    }
   }
 
   @override
@@ -27,13 +80,14 @@ class _SignupScreenState extends State<SignupScreen> {
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.only(bottom: keyboardHeight), // Add padding to account for the keyboard
+          padding: EdgeInsets.only(bottom: keyboardHeight),
+          // Add padding to account for the keyboard
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xffa1c4fd), Color(0xffc2e9fb)],
+                colors: [Colors.blue, Colors.blue],
               ),
             ),
             width: double.infinity,
@@ -76,7 +130,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 controller: _nameController,
                                 decoration: InputDecoration(
                                   labelText: 'Name',
-                                  prefixIcon: Icon(Icons.person), // Icon for name field
+                                  prefixIcon: Icon(Icons.person),
                                 ),
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
@@ -90,7 +144,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 controller: _emailController,
                                 decoration: InputDecoration(
                                   labelText: 'Email',
-                                  prefixIcon: Icon(Icons.email), // Icon for email field
+                                  prefixIcon: Icon(Icons.email),
                                 ),
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (value) {
@@ -106,7 +160,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 obscureText: _obscurePassword,
                                 decoration: InputDecoration(
                                   labelText: 'Password',
-                                  prefixIcon: Icon(Icons.lock), // Icon for password field
+                                  prefixIcon: Icon(Icons.lock),
                                   suffixIcon: IconButton(
                                     icon: Icon(
                                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -125,21 +179,14 @@ class _SignupScreenState extends State<SignupScreen> {
                               SizedBox(height: 50),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.white, // foreground (text) color
-                                  backgroundColor: Colors.black87, // background color
-                                  minimumSize: Size(double.infinity, 50), // Ensure button takes full width
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: Colors.black87,
+                                  minimumSize: Size(double.infinity, 50),
                                 ),
-                                onPressed: () {
-                                  if (_formKey.currentState!.validate()) {
-                                    // Perform signup logic here if needed
-
-                                    // Navigate to home screen
-                                    Navigator.of(context).pushNamed('/home');
-                                  }
-                                },
+                                onPressed: _signupUser,
                                 child: Text('Signup', style: TextStyle(fontSize: 20)),
                               ),
-                              SizedBox(height: 20), // Added spacing between button and footer
+                              SizedBox(height: 20),
                               GestureDetector(
                                 onTap: () {
                                   Navigator.of(context).pushNamed('/login');

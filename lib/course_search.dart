@@ -1,246 +1,223 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
-class CourseSearchPage extends StatefulWidget {
+class AddPostScreen extends StatefulWidget {
   @override
-  _CourseSearchPageState createState() => _CourseSearchPageState();
+  _AddPostScreenState createState() => _AddPostScreenState();
 }
 
-class _CourseSearchPageState extends State<CourseSearchPage> {
-  String _searchQuery = '';
-  String _sortBy = 'title';
-  List<String> _filters = [];
+class _AddPostScreenState extends State<AddPostScreen> {
+  final TextEditingController _postController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _webinarLinkController = TextEditingController();
+  final _database = FirebaseDatabase.instance.ref().child('posts');
+  XFile? _mediaFile; // Change File to XFile
+  String? _selectedPostType;
+  String? _userName = FirebaseAuth.instance.currentUser?.displayName;
 
-  // List of jobs with various professions and types
-  List<Map<String, dynamic>> _jobs = [
-    {
-      'title': 'Fullstack Developer',
-      'salary': 85000.0,
-      'details': 'Proficient in both frontend and backend technologies.',
-      'courses': 'Computer Science, Fullstack Development Bootcamp',
-      'contact': 'fullstack@careerhelp.com',
-      'type': 'Fullstack',
-    },
-    {
-      'title': 'Frontend Developer',
-      'salary': 75000.0,
-      'details': 'Expertise in HTML, CSS, JavaScript frameworks like React or Angular.',
-      'courses': 'Frontend Development, UI/UX Design',
-      'contact': 'frontend@careerhelp.com',
-      'type': 'Frontend',
-    },
-    {
-      'title': 'Backend Developer',
-      'salary': 80000.0,
-      'details': 'Experience with server-side languages like Node.js, Python, Java.',
-      'courses': 'Backend Development, Database Management',
-      'contact': 'backend@careerhelp.com',
-      'type': 'Backend',
-    },
-    {
-      'title': 'Data Analyst',
-      'salary': 70000.0,
-      'details': 'Skills in data analysis, SQL, Excel, and visualization tools.',
-      'courses': 'Data Analytics, Statistics',
-      'contact': 'dataanalyst@careerhelp.com',
-      'type': 'Data Analyst',
-    },
-    {
-      'title': 'DevOps Engineer',
-      'salary': 95000.0,
-      'details': 'Expert in CI/CD pipelines, cloud infrastructure, and automation.',
-      'courses': 'DevOps Engineering, Cloud Computing',
-      'contact': 'devops@careerhelp.com',
-      'type': 'DevOps',
-    },
-    {
-      'title': 'Security Specialist',
-      'salary': 90000.0,
-      'details': 'Knowledge of cybersecurity practices and ethical hacking.',
-      'courses': 'Cybersecurity, Ethical Hacking',
-      'contact': 'security@careerhelp.com',
-      'type': 'Security',
-    },
-    {
-      'title': 'Data Engineer',
-      'salary': 92000.0,
-      'details': 'Build and maintain data pipelines and architecture.',
-      'courses': 'Data Engineering, Big Data',
-      'contact': 'dataengineer@careerhelp.com',
-      'type': 'Data Engineer',
-    },
-    {
-      'title': 'MBA Graduate',
-      'salary': 100000.0,
-      'details': 'Leadership and management skills in business environments.',
-      'courses': 'MBA, Business Management',
-      'contact': 'mba@careerhelp.com',
-      'type': 'MBA',
-    },
-    // Add more job data as needed
-  ];
-  List<Map<String, dynamic>> _filteredJobs = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredJobs = _jobs; // Initialize with all jobs
-  }
-
-  void _searchJobs(String query) {
-    setState(() {
-      _searchQuery = query;
-      _applyFiltersAndSorting();
-    });
-  }
-
-  void _applyFilters(List<String> selectedFilters) {
-    setState(() {
-      _filters = selectedFilters;
-      _applyFiltersAndSorting();
-    });
-  }
-
-  void _applyFiltersAndSorting() {
-    _filteredJobs = _jobs
-        .where((job) {
-      final matchesSearchQuery = job['title'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          job['details'].toLowerCase().contains(_searchQuery.toLowerCase());
-
-      final matchesFilters = _filters.isEmpty || _filters.contains(job['type']);
-      return matchesSearchQuery && matchesFilters;
-    })
-        .toList();
-
-    // Sort jobs based on selected criteria
-    if (_sortBy == 'salary') {
-      _filteredJobs.sort((a, b) => a['salary'].compareTo(b['salary']));
-    } else if (_sortBy == 'title') {
-      _filteredJobs.sort((a, b) => a['title'].compareTo(b['title']));
+  // Method to pick media file (image/video) from gallery
+  Future<void> _pickMedia() async {
+    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _mediaFile = pickedFile; // Store XFile instead of File
+      });
+    } else {
+      print('No media file picked');
     }
   }
 
-  void _sortJobs(String? sortBy) {
-    setState(() {
-      if (sortBy != null) {
-        _sortBy = sortBy;
-        _applyFiltersAndSorting();
+  // Method to upload file to Firebase Storage
+  Future<String?> _uploadFile(XFile file) async {
+    try {
+      String fileName = 'posts/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+      UploadTask uploadTask = FirebaseStorage.instance.ref(fileName).putFile(File(file.path)); // Convert to File for upload
+      TaskSnapshot snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading file: $e');
+      return null;
+    }
+  }
+
+  // Method to submit post
+  void _submitPost() async {
+    String postText = _postController.text.trim();
+    String description = _descriptionController.text.trim();
+    String webinarLink = _webinarLinkController.text.trim();
+
+    if (postText.isNotEmpty && description.isNotEmpty) { // Removed media check
+      String? mediaURL;
+
+      // Only upload file if media is selected
+      if (_mediaFile != null) {
+        mediaURL = await _uploadFile(_mediaFile!);
+        if (mediaURL == null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to upload media')));
+          return; // Stop the submission process if upload fails
+        }
       }
-    });
+
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          Map<String, dynamic> postData = {
+            'author': _userName ?? 'Anonymous',
+            'userId': user.uid,
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'text': postText,
+            'description': description,
+            'postType': _selectedPostType,
+            'mediaURL': mediaURL, // This can be null if no media is uploaded
+          };
+
+          if (_selectedPostType == 'Webinar' && webinarLink.isNotEmpty) {
+            postData['webinarLink'] = webinarLink;
+          }
+
+          await _database.push().set(postData);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Post added successfully')));
+          Navigator.pop(context);
+        } catch (e) {
+          print('Error adding post: $e');
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add post')));
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('User not authenticated')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please fill in all fields')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Career Guidance'),
+        title: Text('Add Post', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        backgroundColor: Color(0xff5B75F0),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              onChanged: _searchJobs,
-              decoration: InputDecoration(
-                labelText: 'Search for jobs/professions',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.search),
+      body: Center(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 5,
+                blurRadius: 7,
+                offset: Offset(0, 3),
               ),
-            ),
+            ],
           ),
-          // Filter chips and sorting options
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Wrap(
-                    spacing: 8.0,
-                    children: _buildFilterChips(),
+          padding: const EdgeInsets.all(16.0),
+          margin: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _postController,
+                  decoration: InputDecoration(
+                    labelText: 'Post Text',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
-                  SizedBox(width: 8.0),
-                  DropdownButton<String>(
-                    value: _sortBy,
-                    items: [
-                      DropdownMenuItem(value: 'title', child: Text('Sort by Title')),
-                      DropdownMenuItem(value: 'salary', child: Text('Sort by Salary')),
-                    ],
-                    onChanged: _sortJobs,
+                  style: TextStyle(color: Colors.black),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: _descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
-                ],
-              ),
+                  maxLines: 3,
+                  style: TextStyle(color: Colors.black),
+                ),
+                SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedPostType,
+                  decoration: InputDecoration(
+                    labelText: 'Post Type',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  onChanged: (newValue) {
+                    setState(() {
+                      _selectedPostType = newValue;
+                    });
+                  },
+                  items: <String>['Webinar', 'Job Referral', 'Personal Post']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value, style: TextStyle(color: Colors.black)),
+                    );
+                  }).toList(),
+                ),
+                SizedBox(height: 16),
+                if (_selectedPostType == 'Webinar')
+                  TextField(
+                    controller: _webinarLinkController,
+                    decoration: InputDecoration(
+                      labelText: 'Webinar Link',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    style: TextStyle(color: Colors.black),
+                  ),
+                SizedBox(height: 16),
+                if (_mediaFile != null)
+                  Container(
+                    height: 200,
+                    width: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12.0),
+                      image: DecorationImage(
+                        image: NetworkImage(_mediaFile!.path), // Use NetworkImage for web
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  )
+                else
+                  Text('No media selected', style: TextStyle(color: Colors.black)),
+                SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _pickMedia,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xff5B75F0),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: Text('Pick Media', style: TextStyle(fontSize: 16, color: Colors.white)),
+                ),
+                SizedBox(height: 32),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _submitPost,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xff5B75F0),
+                      padding: EdgeInsets.symmetric(horizontal: 48, vertical: 16),
+                    ),
+                    child: Text('Submit Post', style: TextStyle(fontSize: 18, color: Colors.white)),
+                  ),
+                ),
+              ],
             ),
           ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: _filteredJobs.map((job) => _buildJobCard(job)).toList(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildFilterChips() {
-    // Define available filters
-    List<String> availableFilters = [
-      'Fullstack',
-      'Frontend',
-      'Backend',
-      'Data Analyst',
-      'DevOps',
-      'Security',
-      'Data Engineer',
-      'MBA'
-    ];
-    return availableFilters.map((filter) {
-      return FilterChip(
-        label: Text(filter),
-        selected: _filters.contains(filter),
-        onSelected: (isSelected) {
-          setState(() {
-            if (isSelected) {
-              _filters.add(filter);
-            } else {
-              _filters.remove(filter);
-            }
-            _applyFilters(_filters);
-          });
-        },
-      );
-    }).toList();
-  }
-
-  Widget _buildJobCard(Map<String, dynamic> job) {
-    return Card(
-      margin: const EdgeInsets.all(8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              job['title'],
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8.0),
-            Text('Salary: \$${job['salary'].toStringAsFixed(2)}'),
-            SizedBox(height: 8.0),
-            Text('Details: ${job['details']}'),
-            SizedBox(height: 8.0),
-            Text('Courses: ${job['courses']}'),
-            SizedBox(height: 8.0),
-            Text('Contact: ${job['contact']}'),
-            SizedBox(height: 8.0),
-            ElevatedButton(
-              onPressed: () {
-                // Handle contact action
-              },
-              child: Text('Contact for Help'),
-            ),
-          ],
         ),
       ),
     );

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "343930647391",
+    "firebase_url": "https://career-guidance-85651-default-rtdb.firebaseio.com",
+    "project_id": "career-guidance-85651",
+    "storage_bucket": "career-guidance-85651.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:343930647391:android:157117490c1698501ebcea",
+        "android_client_info": {
+          "package_name": "com.example.mobile_app_mini_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjI7DzC10DVbGsEUFw-kYVmaYDF5mPycA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

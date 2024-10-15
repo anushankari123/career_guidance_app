@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text("LOGIN", style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800)),
+                      Text("LOGIN", style: TextStyle(color: Colors.white, fontSize: 40,fontWeight: FontWeight.w800)),
                       SizedBox(height: 10),
                       Text("Welcome Back", style: TextStyle(color: Colors.white, fontSize: 20)),
                     ],
@@ -115,12 +116,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                   backgroundColor: Colors.black87, // background color
                                   minimumSize: Size(double.infinity, 50), // Ensure button takes full width
                                 ),
-                                onPressed: () {
+                                onPressed: () async {
                                   if (_formKey.currentState!.validate()) {
-                                    // Perform login logic here if needed
+                                    String email = _emailController.text;
+                                    String password = _passwordController.text;
 
-                                    // Navigate to home screen
-                                    Navigator.of(context).pushNamed('/home');
+                                    try {
+                                      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                                        email: email,
+                                        password: password,
+                                      );
+
+                                      User? user = userCredential.user;
+
+                                      // Navigate to appropriate screen
+                                      if (user != null) {
+                                        if (email.contains('admin')) {
+                                          Navigator.of(context).pushNamed('/home');
+                                        } else {
+                                          Navigator.of(context).pushNamed('/home');
+                                        }
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Invalid email or password')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      print('Error during signin: $e');
+                                      String errorMessage = 'An error occurred, please try again';
+                                      if (e is FirebaseAuthException) {
+                                        errorMessage = e.message ?? errorMessage;
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(errorMessage)),
+                                      );
+                                    }
                                   }
                                 },
                                 child: Text('Login', style: TextStyle(fontSize: 20)),
@@ -134,12 +164,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   alignment: Alignment.center,
                                   padding: EdgeInsets.symmetric(vertical: 20),
                                   child: Text(
-                                    "Don't have an account? Sign up",
+                                    "Don't have an account? Then signup",
                                     style: TextStyle(color: Colors.teal, fontSize: 16),
                                   ),
                                 ),
                               ),
-                              SizedBox(height: 50),
+                              SizedBox(height: 20),
                             ],
                           ),
                         ),
